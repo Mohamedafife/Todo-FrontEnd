@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    input, button { padding: 8px; margin: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Todo App</h1>
+  
+  <div>
+    <input type="hidden" id="todoId" />
+    <input type="text" id="title" placeholder="Title" />
+    <button onclick="submitTodo()" id="submitBtn">Add Todo</button>
+  </div>
+
+  <!-- زر لجلب البيانات -->
+  <button onclick="fetchTodos()">Load Todos</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Is Completed</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody id="todoTable"></tbody>
+  </table>
+
+  <script>
+    const baseUrl = 'https://localhost:7259'; // تأكد من أنه العنوان الصحيح
+
+    // دالة لجلب البيانات من الـ API
+    async function fetchTodos() {
+      try {
+        const res = await fetch(`${baseUrl}/api/TodoItem/GetAllTodo`);
+        const data = await res.json();
+        const todos = data.data || [];
+        
+        const table = document.getElementById('todoTable');
+        table.innerHTML = '';
+
+        todos.forEach(todo => {
+          const row = `<tr>
+            <td>${todo.id}</td>
+            <td>${todo.title}</td>
+            <td>${todo.isCompleted ? 'Yes' : 'No'}</td>
+            <td>${new Date(todo.createdAt).toLocaleString()}</td>
+            <td>
+              <button onclick="editTodo(${todo.id}, '${todo.title}', ${todo.isCompleted})">Edit</button>
+              <button onclick="deleteTodo(${todo.id})">Delete</button>
+            </td>
+          </tr>`;
+          table.innerHTML += row;
+        });
+      } catch (error) {
+        console.error('Error fetching todos:', error);
+      }
+    }
+
+    // دالة لتحرير التدوينة
+    function editTodo(id, title, isCompleted) {
+      document.getElementById('todoId').value = id;
+      document.getElementById('title').value = title;
+      document.getElementById('submitBtn').textContent = 'Update Todo';
+    }
+
+    // دالة لإضافة أو تحديث التدوينة
+    async function submitTodo() {
+      const id = document.getElementById('todoId').value;
+      const title = document.getElementById('title').value;
+      const isCompleted = document.getElementById('isCompleted')?.checked;
+
+      if (id) {
+        // Update
+        await fetch(`${baseUrl}/api/TodoItem/UpdateTodo`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: parseInt(id), title, isCompleted })
+        });
+      } else {
+        // Add
+        await fetch(`${baseUrl}/api/TodoItem/AddTodo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, isCompleted })
+        });
+      }
+
+      // Reset form
+      document.getElementById('todoId').value = '';
+      document.getElementById('title').value = '';
+      document.getElementById('submitBtn').textContent = 'Add Todo';
+
+      fetchTodos(); // تحديث القائمة بعد الإضافة
+    }
+
+    // دالة لحذف التدوينة
+    async function deleteTodo(id) {
+      await fetch(`${baseUrl}/api/TodoItem/DeleteTodo?id=${id}`, { method: 'DELETE' });
+      fetchTodos(); // تحديث القائمة بعد الحذف
+    }
+    //ddddddd
+  </script>
+</body>
+</html>
