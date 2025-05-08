@@ -4,61 +4,84 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Todo App</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    input, button { padding: 8px; margin: 4px; }
-  </style>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-  <h1>Todo App</h1>
-  
-  <div>
-    <input type="hidden" id="todoId" />
-    <input type="text" id="title" placeholder="Title" />
-    <button onclick="submitTodo()" id="submitBtn">Add Todo</button>
+<body class="p-4">
+  <div class="container">
+    <h1 class="mb-4">Todo App</h1>
+
+    <div class="row g-2 mb-4">
+      <div class="col-md-3">
+        <input type="hidden" id="todoId" />
+        <input type="text" id="title" class="form-control" placeholder="Title" required />
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="description" class="form-control" placeholder="Description" />
+      </div>
+      <div class="col-md-2">
+        <select id="status" class="form-select">
+          <option value="Pending">Pending</option>
+          <option value="InProgress">InProgress</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select id="priority" class="form-select">
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" id="dueDate" class="form-control" />
+      </div>
+    </div>
+
+    <button class="btn btn-primary mb-3" onclick="submitTodo()" id="submitBtn">Add Todo</button>
+    <button class="btn btn-secondary mb-3 ms-2" onclick="fetchTodos()">Load Todos</button>
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Due Date</th>
+          <th>Created</th>
+          <th>Modified</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="todoTable"></tbody>
+    </table>
   </div>
 
-  <!-- زر لجلب البيانات -->
-  <button onclick="fetchTodos()">Load Todos</button>
-
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Is Completed</th>
-        <th>Created At</th>
-      </tr>
-    </thead>
-    <tbody id="todoTable"></tbody>
-  </table>
-
   <script>
-    const baseUrl = 'https://localhost:7259'; // تأكد من أنه العنوان الصحيح
+    const baseUrl = 'https://localhost:7259';
 
-    // دالة لجلب البيانات من الـ API
     async function fetchTodos() {
       try {
         const res = await fetch(`${baseUrl}/api/TodoItem/GetAllTodo`);
         const data = await res.json();
         const todos = data.data || [];
-        
         const table = document.getElementById('todoTable');
         table.innerHTML = '';
-
         todos.forEach(todo => {
-          const row = `<tr>
-            <td>${todo.id}</td>
-            <td>${todo.title}</td>
-            <td>${todo.isCompleted ? 'Yes' : 'No'}</td>
-            <td>${new Date(todo.createdAt).toLocaleString()}</td>
-            <td>
-              <button onclick="editTodo(${todo.id}, '${todo.title}', ${todo.isCompleted})">Edit</button>
-              <button onclick="deleteTodo(${todo.id})">Delete</button>
-            </td>
-          </tr>`;
+          const row = `
+            <tr>
+              <td>${todo.title}</td>
+              <td>${todo.description || ''}</td>
+              <td>${todo.status}</td>
+              <td>${todo.priority}</td>
+              <td>${todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : ''}</td>
+              <td>${new Date(todo.createdAt).toLocaleDateString()}</td>
+              <td>${new Date(todo.lastModifiedDate).toLocaleDateString()}</td>
+              <td>
+                <button class="btn btn-sm btn-warning" onclick="editTodo(${JSON.stringify(todo).replace(/"/g, '&quot;')})">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteTodo(${todo.id})">Delete</button>
+              </td>
+            </tr>`;
           table.innerHTML += row;
         });
       } catch (error) {
@@ -66,49 +89,68 @@
       }
     }
 
-    // دالة لتحرير التدوينة
-    function editTodo(id, title, isCompleted) {
-      document.getElementById('todoId').value = id;
-      document.getElementById('title').value = title;
+    function editTodo(todo) {
+      document.getElementById('todoId').value = todo.id;
+      document.getElementById('title').value = todo.title;
+      document.getElementById('description').value = todo.description;
+      document.getElementById('status').value = todo.status;
+      document.getElementById('priority').value = todo.priority;
+      document.getElementById('dueDate').value = todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : '';
       document.getElementById('submitBtn').textContent = 'Update Todo';
     }
 
-    // دالة لإضافة أو تحديث التدوينة
     async function submitTodo() {
       const id = document.getElementById('todoId').value;
       const title = document.getElementById('title').value;
-      const isCompleted = document.getElementById('isCompleted')?.checked;
+      const description = document.getElementById('description').value;
+      const status = document.getElementById('status').value;
+      const priority = document.getElementById('priority').value;
+      const dueDate = document.getElementById('dueDate').value;
+
+      const todo = {
+        title,
+        description,
+        status,
+        priority,
+        dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        createdAt: new Date().toISOString(),
+        lastModifiedDate: new Date().toISOString(),
+        isCompleted: status === 'Completed'
+      };
 
       if (id) {
-        // Update
+        todo.id = parseInt(id);
         await fetch(`${baseUrl}/api/TodoItem/UpdateTodo`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: parseInt(id), title, isCompleted })
+          body: JSON.stringify(todo)
         });
       } else {
-        // Add
         await fetch(`${baseUrl}/api/TodoItem/AddTodo`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, isCompleted })
+          body: JSON.stringify(todo)
         });
       }
 
-      // Reset form
       document.getElementById('todoId').value = '';
       document.getElementById('title').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('status').value = 'Pending';
+      document.getElementById('priority').value = 'Medium';
+      document.getElementById('dueDate').value = '';
       document.getElementById('submitBtn').textContent = 'Add Todo';
 
-      fetchTodos(); // تحديث القائمة بعد الإضافة
+      fetchTodos();
     }
 
-    // دالة لحذف التدوينة
     async function deleteTodo(id) {
-      await fetch(`${baseUrl}/api/TodoItem/DeleteTodo?id=${id}`, { method: 'DELETE' });
-      fetchTodos(); // تحديث القائمة بعد الحذف
+      if (!confirm("Are you sure you want to delete this todo?")) return;
+      await fetch(`${baseUrl}/api/TodoItem/DeleteTodo?id=${id}`, {
+        method: 'DELETE'
+      });
+      fetchTodos();
     }
-    //ddddddd
   </script>
 </body>
 </html>
